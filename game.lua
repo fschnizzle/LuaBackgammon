@@ -27,29 +27,10 @@ function Game:new()
     setmetatable(obj, self)
     self.__index = self
 
-
     -- Create points AFTER
     obj.points = Points:new(obj)
 
     return obj
-end
-
-function Game:rollDice()
-    if self.current_action ~= "roll" then return end -- Only roll dice in the "roll" state
-
-    -- Example dice roll logic (replace with actual random rolls later)
-    self.diceRolls = {math.random(1, 6), math.random(1, 6)}
-    print(self.current_player, "rolled:", table.concat(self.diceRolls, ", "))
-
-    -- Transition to "move"
-    self.current_action = "move"
-end
-
-function Game:checkRollButtonClick(mouseX, mouseY)
-    local button = self.rollButton
-    if mouseX >= button.x and mouseX <= button.x + button.width and mouseY >= button.y and mouseY <= button.y + button.height then
-        self:rollDice()
-    end
 end
 
 function Game:update(dt)
@@ -99,6 +80,38 @@ function Game:update(dt)
         end
     else
         mousePressed = false -- Reset the flag when the mouse button is released
+    end
+end
+
+function Game:draw()
+    self.board:draw()
+    self.points:draw()
+    love.graphics.setColor(0, 0, 0)
+    love.graphics.print(self.current_player .. " : " .. table.concat(self.diceRolls, "  "), 10, 10)    -- print("Current player:", self.current_player)
+    love.graphics.setColor(1, 1, 1)
+
+    -- Draw the roll button
+    if self.current_action == "roll" then
+        local button = self.rollButton
+        love.graphics.draw(button.sprite, button.x, button.y)
+    end
+    -- print("Selected point:", self.selectedPoint and self.selectedPoint.id or "None")
+    
+
+    -- -- State based drawing
+    -- if self.current_action == "roll" then
+    --     print("ROLL: click to roll the dice")
+    -- elseif self.current_action == "move" then
+    --     print("MOVE: click on a checker to select it, then click on a valid point to move it")
+    -- elseif self.current_action == "end_turn" then
+    --     print("END TURN: click to end turn")
+    -- end
+end
+
+function Game:checkRollButtonClick(mouseX, mouseY)
+    local button = self.rollButton
+    if mouseX >= button.x and mouseX <= button.x + button.width and mouseY >= button.y and mouseY <= button.y + button.height then
+        self:rollDice()
     end
 end
 
@@ -173,33 +186,6 @@ function table.contains(tbl, val)
         end
     end
     return false
-end
-
-
-
-function Game:draw()
-    self.board:draw()
-    self.points:draw()
-    love.graphics.setColor(0, 0, 0)
-    love.graphics.print(self.current_player .. " : " .. table.concat(self.diceRolls, "  "), 10, 10)    -- print("Current player:", self.current_player)
-    love.graphics.setColor(1, 1, 1)
-
-    -- Draw the roll button
-    if self.current_action == "roll" then
-        local button = self.rollButton
-        love.graphics.draw(button.sprite, button.x, button.y)
-    end
-    -- print("Selected point:", self.selectedPoint and self.selectedPoint.id or "None")
-    
-
-    -- -- State based drawing
-    -- if self.current_action == "roll" then
-    --     print("ROLL: click to roll the dice")
-    -- elseif self.current_action == "move" then
-    --     print("MOVE: click on a checker to select it, then click on a valid point to move it")
-    -- elseif self.current_action == "end_turn" then
-    --     print("END TURN: click to end turn")
-    -- end
 end
 
 -- roll_sprite = love.graphics.newImage("images/roll_brown.png")
