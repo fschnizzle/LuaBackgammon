@@ -3,9 +3,16 @@ local Point = require("point")
 local Points = {}
 Points.__index = Points
 
-function Points:new()
+function Points:new(game)
+    if not game then
+        error("Game object must be provided to Points!")
+    end
+
+
+    -- print("Game reference passed to Points:", game ~= nil) -- Should print "true"
     local obj = {
-        points = {}
+        points = {},
+        game = game
     }
     setmetatable(obj, Points)
     obj:initializePoints()
@@ -13,30 +20,71 @@ function Points:new()
 end
 
 function Points:draw()
+    -- Debug the Game object and current_action
+    -- if not self.game then
+    --     print("Error: Game object not set in Points.")
+    -- elseif not self.game.current_action then
+    --     print("Error: current_action is nil in Game.")
+    -- else
+    --     print("Game.current_action:", self.game.current_action)
+    -- end
+
+    -- Draw checkers
     self:drawCheckers()
-    if current_player ~= "none" and current_action == "move" then
+
+    -- Highlight possible moves if applicable
+    if self.game.current_action == "move" then
         self:showPossibleMoves()
     end
-    
 end
 
-function Points:showPossibleMoves()
-    if current_action == "move" then 
-        -- Check if any checkers are on bar (25 for brown, 26 for white)
-        local bar = (current_player == "brown") and 25 or 26
 
-        if self.points[bar].count > 0 then
-            -- Check if any moves are possible for the current roll
-            point = self.points[bar]
-            point:highlightPoint()
-        else
-            -- Check if any moves are possible for the current roll
-            for _, point in ipairs(self.points) do --TODO: check for and remove points that don't have any moves possible for that roll
-                if point.color == current_player then
-                    point:highlightPoint()
-                end
+function Points:highlightValidMoves(point)
+    -- Highlight moves based on the current roll
+    -- local validRolls = {4,6} -- REPLACE WITH ACTUAL ROLLS LATER
+    for _, roll in ipairs(self.game.diceRolls) do
+        local targetId = (self.game.current_player == "brown") and (point.id - roll) or (point.id + roll)
+        if targetId >= 1 and targetId <= 24 then
+            local targetPoint = self.points[targetId]
+
+            if self.game:isValidMove(point, targetPoint, roll) then
+                targetPoint:highlightPoint()
             end
         end
+    end
+end
+
+-- function Points:showPossibleMoves()
+--     -- Check if any checkers are on bar (25 for brown, 26 for white)
+--     local bar = (self.game.current_player == "brown") and 25 or 26
+
+--     if self.points[bar].count > 0 then
+--         -- Check if any moves are possible for the current roll
+--         local point = self.points[bar]
+--         point:highlightPoint()
+--     else
+--         -- Check if any moves are possible for the current roll
+--         for _, point in ipairs(self.points) do --TODO: check for and remove points that don't have any moves possible for that roll
+--             if point.color == self.game.current_player then
+--                 self:highlightValidMoves(point)
+--             end
+--         end
+--     end
+-- end
+
+function Points:showPossibleMoves()
+    -- If no point is selected, highlight points with the current players checkers
+    if self.game.selectedPoint == nil then
+        print(" pts.shPoMoves(): Highlighting points for", self.game.current_player)
+        for _, point in ipairs(self.points) do
+            if point.color == self.game.current_player and point.count > 0 then
+                point:highlightPoint()
+            end
+        end
+    else
+        -- If a point is selected, highlight valid moves
+        print("Highlighting valid moves for point:", self.game.selectedPoint.id)
+        self:highlightValidMoves(self.game.selectedPoint)
     end
 end
 
@@ -109,7 +157,7 @@ function Points:initializePoints()
     self.points[24]:setCheckers(2, "brown")
 
     for _, point in ipairs(self.points) do
-        print(point.id, point.count, point.color, point.type)
+        -- print(point.id, point.count, point.color, point.type)
     end
 end
 

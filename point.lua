@@ -25,6 +25,29 @@ function Point:setCheckers(count, color)
     return self
 end
 
+function Point:addChecker(color)
+    if self.color == "none" or self.color == color then
+        self.count = self.count + 1
+        self.color = color
+    -- elseif self.color == other color but count == 1 then -- Hit and take
+    else
+        error("Cannot add checker of a different color to this spike")
+    end
+end
+
+function Point:removeChecker()
+    if self.count > 0 then
+        self.count = self.count - 1
+        if self.count == 0 then
+            self.color = "none"
+        end
+        return true
+    else
+        error("No checkers to remove")
+        return false
+    end
+end
+
 function Point:clear()
     self.count = 0
     self.color = "none"
@@ -73,8 +96,15 @@ function Point:drawCheckers()
 end
 
 function Point:highlightPoint()
+    print("Highlighting point:", self.id)
+
     love.graphics.setColor(1, 1, 0, 0.4) -- Yellow shader
     love.graphics.polygon('fill', self.coordinates[1].x, self.coordinates[1].y, self.coordinates[2].x, self.coordinates[2].y, self.coordinates[3].x, self.coordinates[3].y, self.coordinates[4].x, self.coordinates[4].y)
+    love.graphics.setColor(1, 1, 1, 1) -- Reset color after drawing
+end
+
+function Point:pointDescription()
+    print("ID:", self.id, "Count:", self.count, "Color:", self.color, "Type:", self.type)
 end
 
 return Point
