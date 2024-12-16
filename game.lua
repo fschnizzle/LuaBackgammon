@@ -15,7 +15,14 @@ function Game:new()
         selectedPoint = nil,
         diceRolls = {1, 2},
         current_player = "brown", -- Global variable
-        current_action = "move"  -- Global variable
+        current_action = "move",  -- Global variable
+        rollButton = {
+            sprite = love.graphics.newImage("images/roll_brown.png"),
+            width = 100, -- Placeholder width for the sprite
+            height = 30, -- Placeholder height for the sprite
+            x = 250, -- Position on the screen
+            y = love.graphics.getHeight() / 2 - 30/2, -- Vertically centered
+        }
     }
     setmetatable(obj, self)
     self.__index = self
@@ -38,6 +45,13 @@ function Game:rollDice()
     self.current_action = "move"
 end
 
+function Game:checkRollButtonClick(mouseX, mouseY)
+    local button = self.rollButton
+    if mouseX >= button.x and mouseX <= button.x + button.width and mouseY >= button.y and mouseY <= button.y + button.height then
+        self:rollDice()
+    end
+end
+
 function Game:update(dt)
 
     -- Await user input [CLICKS]
@@ -47,6 +61,14 @@ function Game:update(dt)
             mousePressed = true -- Register that the mouse is now pressed
 
             -- Handle based on current action
+
+            -- Handle roll button click
+            if self.current_action == "roll" then
+                self:checkRollButtonClick(mouseX, mouseY)
+                return -- Exit after processing the roll button click
+            end
+
+            -- Handle point clicks for moves
             if self.current_action == "move" then
                 for _, point in ipairs(self.points.points) do
                     local coords = point.coordinates
@@ -122,7 +144,7 @@ function Game:endTurn()
     self.current_player = (self.current_player == "brown") and "white" or "brown"
 
     -- Reset for next turn
-    self.diceRolls = {6, 4}
+    self.diceRolls = {}
     self.current_action = "roll"
 end
 
@@ -160,6 +182,13 @@ function Game:draw()
     self.points:draw()
     love.graphics.setColor(0, 0, 0)
     love.graphics.print(self.current_player .. " : " .. table.concat(self.diceRolls, "  "), 10, 10)    -- print("Current player:", self.current_player)
+    love.graphics.setColor(1, 1, 1)
+
+    -- Draw the roll button
+    if self.current_action == "roll" then
+        local button = self.rollButton
+        love.graphics.draw(button.sprite, button.x, button.y)
+    end
     -- print("Selected point:", self.selectedPoint and self.selectedPoint.id or "None")
     
 
