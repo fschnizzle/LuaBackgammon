@@ -25,16 +25,14 @@ function Point:setCheckers(count, color)
     return self
 end
 
+function Point:canAddChecker(color)
+    return self.color == "none" or self.color == color
+end
+
 function Point:addChecker(color)
-    if self.color == "none" or self.color == color then
+    if self:canAddChecker(color) then
         -- Add checker to empty or same-color point
         self.count = self.count + 1
-        self.color = color
-        return true
-    elseif self.color ~= color and self.color ~= "none" and self.count == 1 then
-        -- Hit the blot
-        self:removeChecker() -- Remove the blot (opponent's checker)
-        self.count = 1 -- Add the current player's checker
         self.color = color
         return true
     else

@@ -19,6 +19,7 @@ function Game:new()
             white = Dice:new("white")
         },
         current_player = "brown", -- Global variable
+        other_player = "white", -- Global variable
         current_action = "roll",  -- Global variable
         rollButton = {
             sprite = love.graphics.newImage("images/roll_brown.png"),
@@ -147,10 +148,15 @@ function Game:moveChecker(fromId, toId)
         point:pointDescription()
     end
 
-
     local fromPoint = self.points.points[fromId]
     local toPoint = self.points.points[toId]
     local color = fromPoint.color
+
+    -- Handle bar mechanics
+    if self:playerHasCheckersOnBar(self.current_player) and fromId ~= self:getBarPosition(self.current_player) then
+        print("Player has checkers on the bar!")
+        return
+    end
 
     -- Check if the move is valid (using dice roll logic etc)
     local distance = toId - fromId
@@ -164,6 +170,11 @@ function Game:moveChecker(fromId, toId)
     if not self:isValidMove(fromPoint, toPoint, absDistance) then
         print("Invalid move!")
         return
+    end
+
+    -- Check for blot and hit if applicable
+    if toPoint.count == 1 and toPoint.color ~= color then
+        self:hitBlot(toPoint)
     end
 
     -- Move the checker
@@ -181,11 +192,32 @@ function Game:moveChecker(fromId, toId)
     end
 end
 
+function Game:playerHasCheckersOnBar()
+    local barId = self:getBarPosition(self.current_player)
+    return self.points.points[barId].count > 0
+end
+
+function Game:hitBlot(point)
+    local blotColor = point.color
+    local barID = self:getBarPosition(blotColor)
+    local barPoint = self.points.points[barID]
+
+    print("Hitting blot! Moving", blotColor, "checker to bar", barId)
+    barPoint:addChecker(blotColor) -- Move to bar
+    point:removeChecker()          -- Remove from current position
+end
+
+function Game:getBarPosition(color)
+    return (color == "brown") and 25 or 26
+end
+
 function Game:endTurn()
     self.current_action = "end_turn"
 
     -- Switch player
+    self.other_player = self.current_player
     self.current_player = (self.current_player == "brown") and "white" or "brown"
+
 
     -- Reset for next turn
     self.dice[self.current_player].diceRolls = {}
@@ -194,6 +226,17 @@ end
 
 -- Add in Game:isValidMove(fromPoint, toPoint, distance) validation function
 function Game:isValidMove(fromPoint, toPoint, distance)
+    -- Bar logic
+    local barPosition = self:getBarPosition(self.current_player)
+    if fromPoint.id == barPosition then
+        if self.current_player == "brown" then
+            return toPoint.id == (25 - distance) and toPoint:canAddChecker(self.current_player)
+        else
+            return toPoint.id == distance and toPoint:canAddChecker(self.current_player)
+        end
+    end
+
+
     if fromPoint.color ~= self.current_player then
         print("Cannot move checkers of the other player")
         return false -- Cannot move opponent's checkers

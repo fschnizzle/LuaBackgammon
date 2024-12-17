@@ -43,54 +43,76 @@ function Points:getPlayerDice()
 end
 
 
+-- Highlight only the bar point for the current player
+function Points:highlightBarOnlyMoves()
+    local barId = self.game:getBarPosition(self.game.current_player)
+    local barPoint = self.points[barId]
+    barPoint:highlightPoint()
+end
+
+-- Highlight points that contain checkers belonging to the current player
+function Points:highlightPointsWithCheckers()
+    for _, point in ipairs(self.points) do
+        if point.color == self.game.current_player and point.count > 0 then
+            point:highlightPoint()
+        end
+    end
+end
+
+-- Highlight valid moves for a given selected point
 function Points:highlightValidMoves(point)
-    -- Highlight moves based on the current roll
     local playerDice = self:getPlayerDice()
 
     for _, roll in ipairs(playerDice.diceRolls) do
-        local targetId = (self.game.current_player == "brown") and (point.id - roll) or (point.id + roll)
+        local targetId = self:getTargetId(point.id, roll)
+
         if targetId >= 1 and targetId <= 24 then
             local targetPoint = self.points[targetId]
-
             if self.game:isValidMove(point, targetPoint, roll) then
                 targetPoint:highlightPoint()
-                targetPoint:pointDescription()
             end
         end
     end
 end
 
--- function Points:showPossibleMoves()
---     -- Check if any checkers are on bar (25 for brown, 26 for white)
---     local bar = (self.game.current_player == "brown") and 25 or 26
+function Points:getTargetId(pointId, roll)
+    if self.game.current_player == "brown" then
+        return pointId - roll
+    else
+        return pointId + roll
+    end
+end
 
---     if self.points[bar].count > 0 then
---         -- Check if any moves are possible for the current roll
---         local point = self.points[bar]
---         point:highlightPoint()
---     else
---         -- Check if any moves are possible for the current roll
---         for _, point in ipairs(self.points) do --TODO: check for and remove points that don't have any moves possible for that roll
---             if point.color == self.game.current_player then
---                 self:highlightValidMoves(point)
---             end
---         end
---     end
--- end
 
-function Points:showPossibleMoves()
-    -- If no point is selected, highlight points with the current players checkers
-    if self.game.selectedPoint == nil then
-        -- print(" pts.shPoMoves(): Highlighting points for", self.game.current_player)
-        for _, point in ipairs(self.points) do
-            if point.color == self.game.current_player and point.count > 0 then
-                point:highlightPoint()
+-- Highlight standard moves when no checkers are on the bar
+function Points:highlightStandardMoves(point)
+    local playerDice = self:getPlayerDice()
+    for _, roll in ipairs(playerDice.diceRolls) do
+        local targetId = (self.game.current_player == "brown")
+            and (point.id - roll) or (point.id + roll)
+        if targetId >= 1 and targetId <= 24 then
+            local targetPoint = self.points[targetId]
+            if self.game:isValidMove(point, targetPoint, roll) then
+                targetPoint:highlightPoint()
             end
         end
+    end
+end
+
+function Points:showPossibleMoves()
+    local barId = self.game:getBarPosition(self.game.current_player)
+    local barPoint = self.points[barId]
+
+    -- If player has checkers on the bar, highlight only the bar
+    if barPoint.count > 0 and self.game.selectedPoint == nil then
+        self:highlightBarOnlyMoves()
     else
-        -- If a point is selected, highlight valid moves
-        -- print("Highlighting valid moves for point:", self.game.selectedPoint.id)
-        self:highlightValidMoves(self.game.selectedPoint)
+        -- Highlight standard moves
+        if self.game.selectedPoint then
+            self:highlightValidMoves(self.game.selectedPoint)
+        else
+            self:highlightPointsWithCheckers()
+        end
     end
 end
 
@@ -145,7 +167,13 @@ function Points:initializePoints()
         local point = Point:new(i)
         point.type = i <= 26 and "bar" or "bearOff"
         -- TODO: Set proper coordinates for special points
-        point.coordinates = {{x = 0, y = 0}, {x = 0, y = 0}, {x = 0, y = 0}, {x = 0, y = 0}} -- Default placeholder
+        if i == 25 then
+            point.coordinates = {{x = 450, y = 0}, {x = 500, y = 0}, {x = 500, y = 300}, {x = 450, y = 300}} -- Mid bottom
+        elseif i == 26 then
+            point.coordinates = {{x = 450, y = 300}, {x = 500, y = 300}, {x = 500, y = 500}, {x = 450, y = 500}} -- Mid top
+        else
+            point.coordinates = {{x = 0, y = 0}, {x = 0, y = 0}, {x = 0, y = 0}, {x = 0, y = 0}} -- Default placeholder
+        end
         self.points[i] = point
     end
 
