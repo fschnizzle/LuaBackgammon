@@ -38,17 +38,23 @@ function Points:draw()
     end
 end
 
+function Points:getPlayerDice()
+    return self.game.dice[self.game.current_player]
+end
+
 
 function Points:highlightValidMoves(point)
     -- Highlight moves based on the current roll
-    -- local validRolls = {4,6} -- REPLACE WITH ACTUAL ROLLS LATER
-    for _, roll in ipairs(self.game.diceRolls) do
+    local playerDice = self:getPlayerDice()
+
+    for _, roll in ipairs(playerDice.diceRolls) do
         local targetId = (self.game.current_player == "brown") and (point.id - roll) or (point.id + roll)
         if targetId >= 1 and targetId <= 24 then
             local targetPoint = self.points[targetId]
 
             if self.game:isValidMove(point, targetPoint, roll) then
                 targetPoint:highlightPoint()
+                targetPoint:pointDescription()
             end
         end
     end
@@ -75,7 +81,7 @@ end
 function Points:showPossibleMoves()
     -- If no point is selected, highlight points with the current players checkers
     if self.game.selectedPoint == nil then
-        print(" pts.shPoMoves(): Highlighting points for", self.game.current_player)
+        -- print(" pts.shPoMoves(): Highlighting points for", self.game.current_player)
         for _, point in ipairs(self.points) do
             if point.color == self.game.current_player and point.count > 0 then
                 point:highlightPoint()
@@ -83,7 +89,7 @@ function Points:showPossibleMoves()
         end
     else
         -- If a point is selected, highlight valid moves
-        print("Highlighting valid moves for point:", self.game.selectedPoint.id)
+        -- print("Highlighting valid moves for point:", self.game.selectedPoint.id)
         self:highlightValidMoves(self.game.selectedPoint)
     end
 end
@@ -131,19 +137,16 @@ function Points:initializePoints()
         local y2 = (quadrant <= 2) and (y1 - spike_height - 25) or (y1 + spike_height + 25)
     
         point.coordinates = {{x = x1, y = y1}, {x = x2, y = y1}, {x = x2, y = y2}, {x = x1, y = y2}}
-        table.insert(self.points, point)
+        self.points[i] = point
     end
 
     -- Initialize special points 25 to 28
-    for i = 25, 26 do
+    for i = 25, 28 do
         local point = Point:new(i)
-        point.type = "bar"
-        table.insert(self.points, point)
-    end
-    for i = 27, 28 do
-        local point = Point:new(i)
-        point.type = "bearOff"
-        table.insert(self.points, point)
+        point.type = i <= 26 and "bar" or "bearOff"
+        -- TODO: Set proper coordinates for special points
+        point.coordinates = {{x = 0, y = 0}, {x = 0, y = 0}, {x = 0, y = 0}, {x = 0, y = 0}} -- Default placeholder
+        self.points[i] = point
     end
 
     -- Set initial counts and colors for a standard backgammon setup

@@ -1,5 +1,6 @@
 local Board = require("board")
 local Points = require("points")
+local Dice = require("dice")
 
 local Game = {}
 
@@ -13,9 +14,12 @@ function Game:new()
         board = Board:new(),
         points = nil,
         selectedPoint = nil,
-        diceRolls = {1, 2},
+        dice = {
+            brown = Dice:new("brown"),
+            white = Dice:new("white")
+        },
         current_player = "brown", -- Global variable
-        current_action = "move",  -- Global variable
+        current_action = "roll",  -- Global variable
         rollButton = {
             sprite = love.graphics.newImage("images/roll_brown.png"),
             width = 100, -- Placeholder width for the sprite
@@ -54,11 +58,7 @@ function Game:update(dt)
                 for _, point in ipairs(self.points.points) do
                     local coords = point.coordinates
                     -- Get smallest and largest x and y from coords
-                    local bounds = {}
-                    bounds.xMin = math.min(coords[1].x, coords[2].x, coords[3].x, coords[4].x)
-                    bounds.xMax = math.max(coords[1].x, coords[2].x, coords[3].x, coords[4].x)
-                    bounds.yMin = math.min(coords[1].y, coords[2].y, coords[3].y, coords[4].y)
-                    bounds.yMax = math.max(coords[1].y, coords[2].y, coords[3].y, coords[4].y)
+                    local bounds = point:getBounds()
 
                     if mouseX >= bounds.xMin and mouseX <= bounds.xMax and mouseY >= bounds.yMin and mouseY <= bounds.yMax then
                         print("Clicked on point", point.id)
@@ -86,12 +86,18 @@ end
 function Game:draw()
     self.board:draw()
     self.points:draw()
+
     love.graphics.setColor(0, 0, 0)
-    love.graphics.print(self.current_player .. " : " .. table.concat(self.diceRolls, "  "), 10, 10)    -- print("Current player:", self.current_player)
+    love.graphics.print(self.current_player .. " : " .. table.concat(self.dice[self.current_player].diceRolls, "  "), 10, 10)    -- print("Current player:", self.current_player)
     love.graphics.setColor(1, 1, 1)
 
-    -- Draw the roll button
-    if self.current_action == "roll" then
+    local playerDice = self.dice[self.current_player]
+
+    -- HAS ROLLED
+    if self.current_action == "move" then
+        playerDice:draw()
+    -- NEEDS TO ROLL
+    elseif self.current_action == "roll" then -- Draw the roll button
         local button = self.rollButton
         love.graphics.draw(button.sprite, button.x, button.y)
     end
@@ -108,6 +114,18 @@ function Game:draw()
     -- end
 end
 
+function Game:rollDice()
+    if self.current_action ~= "roll" then return end
+
+    -- Roll dice for the current player
+    local playerDice = self.dice[self.current_player]
+    playerDice:roll()
+
+    -- Transition to "move"
+    self.current_action = "move"
+end
+
+
 function Game:checkRollButtonClick(mouseX, mouseY)
     local button = self.rollButton
     if mouseX >= button.x and mouseX <= button.x + button.width and mouseY >= button.y and mouseY <= button.y + button.height then
@@ -116,36 +134,49 @@ function Game:checkRollButtonClick(mouseX, mouseY)
 end
 
 function Game:consumeDice(distance)
-    for i, roll in ipairs(self.diceRolls) do
-        if roll == distance then
-            table.remove(self.diceRolls, i)
-            break
-        end
+    local playerDice = self.dice[self.current_player]
+    if not playerDice:consume(distance) then
+        print("Invalid dice consumption!")
     end
 end
 
 function Game:moveChecker(fromId, toId)
+
+    -- DEBUGGING: Print out all point descriptions
+    for _, point in ipairs(self.points.points) do
+        point:pointDescription()
+    end
+
+
     local fromPoint = self.points.points[fromId]
     local toPoint = self.points.points[toId]
+    local color = fromPoint.color
 
     -- Check if the move is valid (using dice roll logic etc)
-    local distance = math.abs(fromId - toId)
-    if not self:isValidMove(fromPoint, toPoint, distance) then
+    local distance = toId - fromId
+    -- Ensure movement is valid for the player's color
+    if (color == "brown" and distance >= 0) or (color == "white" and distance <= 0) then
+        print("Invalid move direction for player:", color)
+        return
+    end
+
+    local absDistance = math.abs(distance)
+    if not self:isValidMove(fromPoint, toPoint, absDistance) then
         print("Invalid move!")
         return
     end
 
     -- Move the checker
-    if fromPoint:removeChecker() then
-        toPoint:addChecker(fromPoint.color)
+    if toPoint:addChecker(color) then
+        fromPoint:removeChecker()
         print("Moved checker from " .. fromId .. " to " .. toId)
-        self:consumeDice(distance)
+        self:consumeDice(absDistance)
     else
         print("No checkers to move!")
     end
 
     -- Check if all dice have been consumed
-    if #self.diceRolls == 0 then
+    if #self.dice[self.current_player].diceRolls == 0 then
         self:endTurn()
     end
 end
@@ -157,7 +188,7 @@ function Game:endTurn()
     self.current_player = (self.current_player == "brown") and "white" or "brown"
 
     -- Reset for next turn
-    self.diceRolls = {}
+    self.dice[self.current_player].diceRolls = {}
     self.current_action = "roll"
 end
 
@@ -173,8 +204,9 @@ function Game:isValidMove(fromPoint, toPoint, distance)
 
 
     -- Validated based on dice rolls
-    -- local diceRolls = {4,6} -- REPLACE WITH ACTUAL ROLLS LATER
-    return table.contains(self.diceRolls, distance)
+    -- local dice[self.current_player].diceRolls = {4,6} -- REPLACE WITH ACTUAL ROLLS LATER
+    local playerDice = self.dice[self.current_player]
+    return table.contains(playerDice.diceRolls, distance)
     
 end
 

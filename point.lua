@@ -27,11 +27,20 @@ end
 
 function Point:addChecker(color)
     if self.color == "none" or self.color == color then
+        -- Add checker to empty or same-color point
         self.count = self.count + 1
         self.color = color
-    -- elseif self.color == other color but count == 1 then -- Hit and take
+        return true
+    elseif self.color ~= color and self.color ~= "none" and self.count == 1 then
+        -- Hit the blot
+        self:removeChecker() -- Remove the blot (opponent's checker)
+        self.count = 1 -- Add the current player's checker
+        self.color = color
+        return true
     else
-        error("Cannot add checker of a different color to this spike")
+        print("FAILED: can't add", color, "checker to point", self.id, "of colour", self.color)
+        return false
+        -- error("Cannot add checker of a different color to this spike")
     end
 end
 
@@ -68,6 +77,17 @@ function Point:drawChecker(x, y)
     love.graphics.circle('line', x, y, 20)
 end
 
+function Point:getBounds()
+    local coords = self.coordinates
+    return {
+        xMin = math.min(coords[1].x, coords[2].x, coords[3].x, coords[4].x),
+        xMax = math.max(coords[1].x, coords[2].x, coords[3].x, coords[4].x),
+        yMin = math.min(coords[1].y, coords[2].y, coords[3].y, coords[4].y),
+        yMax = math.max(coords[1].y, coords[2].y, coords[3].y, coords[4].y),
+    }
+end
+
+
 function Point:drawCheckers()
     -- Draw circles of radius 20 for each checker, 
     -- Get the starting checker's coordinates:
@@ -96,8 +116,6 @@ function Point:drawCheckers()
 end
 
 function Point:highlightPoint()
-    print("Highlighting point:", self.id)
-
     love.graphics.setColor(1, 1, 0, 0.4) -- Yellow shader
     love.graphics.polygon('fill', self.coordinates[1].x, self.coordinates[1].y, self.coordinates[2].x, self.coordinates[2].y, self.coordinates[3].x, self.coordinates[3].y, self.coordinates[4].x, self.coordinates[4].y)
     love.graphics.setColor(1, 1, 1, 1) -- Reset color after drawing
