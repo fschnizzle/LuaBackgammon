@@ -35,12 +35,16 @@ function Point:addChecker(color)
         self.count = self.count + 1
         self.color = color
         return true
+    elseif self.count == 1 and self.color ~= color then
+        -- Handle hitting a blot (single opponent checker)
+        print("Blot hit! Moving opponent checker to bar.")
+        return "hit" -- Signal to Game to handle the blot
     else
         print("FAILED: can't add", color, "checker to point", self.id, "of colour", self.color)
         return false
-        -- error("Cannot add checker of a different color to this spike")
     end
 end
+
 
 function Point:removeChecker()
     if self.count > 0 then
@@ -107,7 +111,22 @@ function Point:drawCheckers()
             self:drawChecker(x, y, self.color)
             y = y + 40
         end
-    -- elseif -- FOR THE SPECIAL POINTS
+    elseif self.id == 25 then
+        -- Draw the bar checkers
+        local x = 475
+        local y = 150
+        for i = 1, self.count do
+            self:drawChecker(x, y, self.color)
+            y = y + 50
+        end
+    elseif self.id == 26 then
+        -- Draw the bear off checkers
+        local x = 475
+        local y = 550
+        for i = 1, self.count do
+            self:drawChecker(x, y, self.color)
+            y = y - 50
+        end
     end
 
 

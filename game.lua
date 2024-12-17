@@ -47,41 +47,71 @@ function Game:update(dt)
             mousePressed = true -- Register that the mouse is now pressed
 
             -- Handle based on current action
-
-            -- Handle roll button click
             if self.current_action == "roll" then
                 self:checkRollButtonClick(mouseX, mouseY)
-                return -- Exit after processing the roll button click
+                return
             end
 
-            -- Handle point clicks for moves
             if self.current_action == "move" then
-                for _, point in ipairs(self.points.points) do
-                    local coords = point.coordinates
-                    -- Get smallest and largest x and y from coords
-                    local bounds = point:getBounds()
-
-                    if mouseX >= bounds.xMin and mouseX <= bounds.xMax and mouseY >= bounds.yMin and mouseY <= bounds.yMax then
-                        print("Clicked on point", point.id)
-                        if self.selectedPoint == nil then
-                            -- Select the point
-                            if point.color == self.current_player and point.count > 0 then
-                                self.selectedPoint = point
-                            end
-                        else
-                            -- Attempt to move a checker
-                            self:moveChecker(self.selectedPoint.id, point.id)
-                            self.selectedPoint = nil
-                        end
-                        break
-                    end
-
-                end
+                self:handleMoveClick(mouseX, mouseY)
             end
         end
     else
         mousePressed = false -- Reset the flag when the mouse button is released
     end
+end
+
+function Game:handleMoveClick(mouseX, mouseY)
+    local barId = self:getBarPosition(self.current_player)
+    local barPoint = self.points.points[barId]
+
+    -- Default to the bar point if checkers are on the bar
+    if self:playerHasCheckersOnBar() then
+        self.selectedPoint = barPoint
+        print("Auto-selected bar point for", self.current_player)
+    end
+
+    if self.selectedPoint then
+        -- Attempt to move the selected checker
+        self:attemptMove(mouseX, mouseY)
+    else
+        -- No bar checkers: Allow selection of checkers to move
+        for _, point in ipairs(self.points.points) do
+            if self:clickWithinBounds(mouseX, mouseY, point) 
+               and point.color == self.current_player 
+               and point.count > 0 then
+                print("Selected point:", point.id)
+                self.selectedPoint = point
+                return
+            end
+        end
+    end
+end
+
+
+function Game:clickWithinBounds(mouseX, mouseY, point)
+    local bounds = point:getBounds()
+    return mouseX >= bounds.xMin and mouseX <= bounds.xMax and mouseY >= bounds.yMin and mouseY <= bounds.yMax
+end
+
+function Game:attemptMove(mouseX, mouseY)
+    for _, targetPoint in ipairs(self.points.points) do
+        if self:clickWithinBounds(mouseX, mouseY, targetPoint) then
+            -- Check for bar movement or normal movement
+            local fromId = self.selectedPoint.id
+            local toId = targetPoint.id
+
+            if self:playerHasCheckersOnBar() and fromId ~= self:getBarPosition(self.current_player) then
+                print("Must move checkers off the bar first!")
+                return
+            end
+
+            self:moveChecker(fromId, toId)
+            self.selectedPoint = nil -- Deselect after a move
+            return
+        end
+    end
+    print("No valid move target clicked.")
 end
 
 function Game:draw()
@@ -142,26 +172,12 @@ function Game:consumeDice(distance)
 end
 
 function Game:moveChecker(fromId, toId)
-
-    -- DEBUGGING: Print out all point descriptions
-    for _, point in ipairs(self.points.points) do
-        point:pointDescription()
-    end
-
     local fromPoint = self.points.points[fromId]
     local toPoint = self.points.points[toId]
     local color = fromPoint.color
 
-    -- Handle bar mechanics
-    if self:playerHasCheckersOnBar(self.current_player) and fromId ~= self:getBarPosition(self.current_player) then
-        print("Player has checkers on the bar!")
-        return
-    end
-
-    -- Check if the move is valid (using dice roll logic etc)
-    local distance = toId - fromId
-    -- Ensure movement is valid for the player's color
-    if (color == "brown" and distance >= 0) or (color == "white" and distance <= 0) then
+    local distance = (fromId == 26) and toId or (toId - fromId)
+    if (color == "brown" and distance >= 0) or (color == "white" and fromId ~= 26 and distance <= 0) then
         print("Invalid move direction for player:", color)
         return
     end
@@ -172,25 +188,30 @@ function Game:moveChecker(fromId, toId)
         return
     end
 
-    -- Check for blot and hit if applicable
-    if toPoint.count == 1 and toPoint.color ~= color then
+    -- Handle blot hit
+    local result = toPoint:addChecker(color)
+    if result == "hit" then
         self:hitBlot(toPoint)
-    end
-
-    -- Move the checker
-    if toPoint:addChecker(color) then
-        fromPoint:removeChecker()
-        print("Moved checker from " .. fromId .. " to " .. toId)
-        self:consumeDice(absDistance)
+        toPoint.count = 1
+        toPoint.color = color
+    elseif result then
+        -- Move without hitting a blot
+        -- toPoint.count = toPoint.count + 1
+        toPoint.color = color
     else
-        print("No checkers to move!")
+        print("Move failed!")
+        return
     end
 
-    -- Check if all dice have been consumed
+    -- Always consume the dice distance after a successful move
+    self:consumeDice(absDistance)
+    fromPoint:removeChecker()
+
     if #self.dice[self.current_player].diceRolls == 0 then
         self:endTurn()
     end
 end
+
 
 function Game:playerHasCheckersOnBar()
     local barId = self:getBarPosition(self.current_player)
@@ -226,7 +247,15 @@ end
 
 -- Add in Game:isValidMove(fromPoint, toPoint, distance) validation function
 function Game:isValidMove(fromPoint, toPoint, distance)
-    -- Bar logic
+    local playerDice = self.dice[self.current_player]
+
+    -- Ensure distance exists in dice rolls
+    if not table.contains(playerDice.diceRolls, distance) then
+        print("Invalid move: Distance", distance, "not in dice rolls")
+        return false
+    end
+
+    -- Bar-specific logic
     local barPosition = self:getBarPosition(self.current_player)
     if fromPoint.id == barPosition then
         if self.current_player == "brown" then
@@ -236,21 +265,29 @@ function Game:isValidMove(fromPoint, toPoint, distance)
         end
     end
 
-
+    -- General move validation
     if fromPoint.color ~= self.current_player then
-        print("Cannot move checkers of the other player")
-        return false -- Cannot move opponent's checkers
+        print("Cannot move opponent's checkers.")
+        return false
     end
+
+    -- Check if destination point is valid
     if toPoint.color ~= "none" and toPoint.color ~= fromPoint.color then
-        return toPoint.count == 1 -- Opposite color can only be hit if max one checker (blot) is there)
+        return toPoint.count == 1 -- Only allow hitting blots
     end
 
+    return true
+end
 
-    -- Validated based on dice rolls
-    -- local dice[self.current_player].diceRolls = {4,6} -- REPLACE WITH ACTUAL ROLLS LATER
-    local playerDice = self.dice[self.current_player]
-    return table.contains(playerDice.diceRolls, distance)
-    
+
+-- Helper function to check if a move to a point is valid
+function Game:canMoveToPoint(toPoint)
+    if toPoint.color == "none" or toPoint.color == self.current_player then
+        return true -- Empty point or same-color checkers
+    elseif toPoint.color ~= self.current_player and toPoint.count == 1 then
+        return true -- Blot can be hit
+    end
+    return false -- Invalid move
 end
 
 -- Helper function to check if a value is in a table
