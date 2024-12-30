@@ -11,7 +11,7 @@ function Board:draw()
 
     -- Background Rectangle
     self:drawBG()
-
+    
     -- Edges (Left, Right, Middle)
     self:drawEdges()
 

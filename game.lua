@@ -3,10 +3,6 @@ local Points = require("points")
 local Dice = require("dice")
 
 local Game = {}
-
--- current_player = "brown" -- or "brown", depending on the current player
--- current_action = "move" -- "roll" = must first click roll btn, "move" = has rolled and now needs to move using remaining dice
-
 local mousePressed = false -- Tracks the mouse state
 
 function Game:new()

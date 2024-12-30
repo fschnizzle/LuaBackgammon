@@ -34,6 +34,15 @@ function Dice:roll()
     self.diceRolls = {math.random(1, 6), math.random(1, 6)}
     print(self.playerColor, "rolled:", table.concat(self.diceRolls, ", "))
 
+    -- Handle doubles
+    if self.diceRolls[1] == self.diceRolls[2] then
+        table.insert(self.diceRolls, self.diceRolls[1])
+        table.insert(self.diceRolls, self.diceRolls[1])
+        self.x = (self.playerColor == "brown") and 190 or 540 -- Translate 50 <-- IF DOUBLES
+    else
+        self.x = (self.playerColor == "brown") and 250 or 600 -- Position on the screen
+    end
+
     return self.diceRolls
 end
 

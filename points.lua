@@ -147,9 +147,9 @@ function Points:initializePoints()
     self.points[13]:setCheckers(5, "brown")
     self.points[17]:setCheckers(3, "white")
     self.points[19]:setCheckers(5, "white")
-    self.points[21]:setCheckers(1, "white")
-    self.points[22]:setCheckers(1, "white")
-    self.points[23]:setCheckers(1, "white")
+    -- self.points[21]:setCheckers(1, "white")
+    -- self.points[22]:setCheckers(1, "white")
+    -- self.points[23]:setCheckers(1, "white")
     self.points[24]:setCheckers(2, "brown")
 end
 
